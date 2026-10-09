@@ -47,7 +47,11 @@ jobs:
           curl -fsSL "$STOCKFISH_URL" -o /tmp/sf.tar.gz
           tar -xzf /tmp/sf.tar.gz -C stockfish --strip-components=1
           chmod +x stockfish/stockfish-android-arm64-universal
-          stockfish/stockfish-android-arm64-universal <<< $'uci\nquit' | grep -m1 uciok
+          # This runner is x86-64, so the arm64 engine cannot be executed here.
+          # Verify the ELF architecture and a sane size instead.
+          file stockfish/stockfish-android-arm64-universal | grep -q 'ARM aarch64'
+          test "$(stat -c%s stockfish/stockfish-android-arm64-universal)" -gt 1000000
+          echo "engine verified: $(file -b stockfish/stockfish-android-arm64-universal | cut -d, -f1-2), $(stat -c%s stockfish/stockfish-android-arm64-universal) bytes"
 
       # The android/ project is committed, so only generate it when missing.
       - name: Prepare Android project
