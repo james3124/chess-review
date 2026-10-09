@@ -4,7 +4,7 @@ import { parsePgn } from './lib/pgn.mjs';
 import { analyzeGame } from './lib/analyze.mjs';
 import { Chess } from './vendor/chess.js';
 import { LABELS, summarise } from './lib/classify.js';
-import { engine as bridge } from './native-bridge.js';
+import { engine as bridge, storedBase, setEngineBase, engineBaseCandidates } from './native-bridge.js';
 import { chessCom } from './chesscom-bridge.js';
 import { gameTitle, gameResult, timeClassLabel, ecoLabel, formatDate, toParsedGame } from './chesscom.mjs';
 
@@ -61,6 +61,21 @@ function initEngineBar() {
   ui.engineBar.className = 'engine-bar idle';
   $('#engine-text').innerHTML = 'engine starts when you open a game';
   $('#engine-depth').appendChild(select);
+
+  // Tap the engine bar to point the browser build at the analysis server.
+  ui.engineBar.style.cursor = 'pointer';
+  ui.engineBar.title = 'Tap to set the analysis server address';
+  ui.engineBar.onclick = () => {
+    const cur = storedBase();
+    const next = prompt(
+      'Analysis server address.\n' +
+      `Leave blank for automatic (tries: ${engineBaseCandidates().join(', ')}).`,
+      cur
+    );
+    if (next === null) return;
+    setEngineBase(next);
+    location.reload();
+  };
 }
 
 /** Called the moment analysis begins: show the loader + live elapsed time. */
@@ -75,22 +90,28 @@ function showEngineLoading() {
   }, 250);
 }
 
-/** Re-renders the engine bar once the shared readiness promise settles. */
+/**
+ * Re-renders the engine bar once the shared readiness promise settles.
+ */
 async function finishEngineBar() {
-  const info = await engineReady();
-  clearInterval(engineTimer);
-  S.engineInfo = info;
-  const secs = ((Date.now() - engineT0) / 1000).toFixed(1);
-  if (info.state === 'failed') {
-    ui.engineBar.className = 'engine-bar bad';
-    $('#engine-text').innerHTML = `engine unavailable (${info.error || 'unknown'})`;
-  } else {
+  try {
+    const info = await engineReady();
+    clearInterval(engineTimer);
+    S.engineInfo = info;
+    const secs = ((Date.now() - engineT0) / 1000).toFixed(1);
     ui.engineBar.className = 'engine-bar ok';
+    const where = info.state === 'ready' && bridge.mode === 'http'
+      ? ` · ${info.base ? info.base.replace(/^https?:\/\//, '') : 'local server'}`
+      : '';
     $('#engine-text').innerHTML =
       `engine ready: <b>${info.version || 'Stockfish'}</b> ` +
-      `(${info.threads || '?'} threads &middot; ${info.hash || '?'} MB hash &middot; ${secs}s)`;
+      `(${info.threads || '?'} threads &middot; ${info.hash || '?'} MB hash &middot; ${secs}s)${where}`;
+  } catch (err) {
+    clearInterval(engineTimer);
+    ui.engineBar.className = 'engine-bar bad';
+    $('#engine-text').innerHTML =
+      `engine unavailable: ${err.message} <span class="engine-fix">(tap to set the server address)</span>`;
   }
-  return info;
 }
 
 /* ---------------- loading PGNs ---------------- */
@@ -275,7 +296,10 @@ async function analyse(game) {
     await engineReady();
   } catch (err) {
     S.analysing = false; hideProgress();
-    return alert('Could not start the engine: ' + err.message);
+    const hint = bridge.mode === 'native'
+      ? err.message
+      : `${err.message}\n\nThe built-in engine only exists in the APK; in a browser the analysis runs in the Node server (npm start, port 3000).`;
+    return alert('Could not start the engine.\n\n' + hint);
   }
   finishEngineBar(); // updates the engine bar (memoised promise: instant)
 

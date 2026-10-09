@@ -49,6 +49,12 @@ npm start              # http://localhost:3000
 Open `http://localhost:3000`, press **PGN** or **Paste**, pick a depth, and the
 moves stream in as Stockfish finishes them.
 
+The app does not care where its own files are served from — it looks for the
+analysis server on the current origin first, then `localhost:3000`, then
+`127.0.0.1:3000`, then `:8080`. So opening `index.html` from an editor's live
+preview (any port) works fine as long as `npm start` is running. Tap the engine
+bar to pin the server address manually.
+
 ## Test the analysis pipeline directly
 
 ```bash
