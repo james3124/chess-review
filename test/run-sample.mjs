@@ -5,7 +5,8 @@ import { parsePgn } from '../www/lib/pgn.mjs';
 import { analyzeGame } from '../www/lib/analyze.mjs';
 
 const depth = Number(process.env.DEPTH || 12);
-const engine = new UCIEngine({ binary: './stockfish/stockfish-android-arm64-universal', threads: 2, hash: 128 });
+const threads = Number(process.env.THREADS || 1);
+const engine = new UCIEngine({ binary: './stockfish/stockfish-android-arm64-universal', threads, hash: 128 });
 
 console.log('starting engine (loads 109MiB NNUE, please wait)...');
 await engine.start();

@@ -85,9 +85,34 @@ bridges therefore validate every search (nodes > 5 **and** a non-empty PV) and
 retry until the engine is genuinely searching. Without this the app would
 silently annotate a whole game with garbage.
 
+## Performance notes (measured here: Unisoc T606, 6×A55 + 2×A75 @ 1.6GHz)
+
+- **One thread is fastest — and deterministic.** At fixed depth 14, an
+  11-move game took **17.9 s with 1 thread**, 18.6 s with 2, 21.2 s with 4.
+  Stockfish's Lazy SMP waits for the *slowest* helper thread each iteration,
+  and with only 2 fast cores among 8 the extra threads land on little cores
+  and straggle. More threads explore more nodes per second, but at **fixed
+  depth** the search stops at the same depth, so those extra nodes are just
+  extra work — `nodes/sec` is the wrong metric for this app.
+- With >1 thread Stockfish is also **non-deterministic** (Lazy SMP results
+  depend on timing), so re-analysing a game can yield different labels.
+- Threads would only help with `go movetime`, where "deeper in fixed time" is
+  the goal — which is not how this app searches.
+- **Startup** is dominated by loading the 109 MiB embedded NNUE network
+  (~1 s here; longer in the APK, where Chromium competes for RAM). Threads do
+  not affect it — hence the lazy load on the first game.
+- The bundled engine already uses `dotprod`: the `arm64-universal` package
+  contains both the `armv8` and `armv8-dotprod` builds and picks one at
+  startup, so rebuilding from source would not speed it up.
+- ~0.6 s per position at depth 12, ~1.6 s at depth 14. A 33-move game is
+  ~55 s at depth 14 on this CPU, so expect a few minutes on a phone.
+
 ## Licence
 
 Stockfish is **GPL-3.0**. Bundling it makes this app GPL-3.0 too, which in
-practice means: don't distribute a closed-source build, and the source must be
-available — which this repository is. `android/app/src/main/jniLibs` is
-generated at build time from the engine release and is not committed.
+practice means: don't distribute a closed-source build, and the corresponding
+source must be available. **This repo satisfies that** —
+`third_party/stockfish/` holds the source for the exact binary the APK ships
+(`sf_19`'s `stockfish-android-arm64-universal`). CI still downloads the
+official release asset rather than rebuilding, because that binary is already
+the optimal build for this device; see `third_party/stockfish/README.md`.

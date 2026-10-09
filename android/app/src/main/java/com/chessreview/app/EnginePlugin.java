@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 @CapacitorPlugin(name = "EnginePlugin")
 public class EnginePlugin extends Plugin {
 
-    private static final int THREADS = 2;
+    private static final int THREADS = 1;
     private static final int HASH_MB = 128;
 
     /** One parsed UCI `info` line. */

@@ -23,7 +23,7 @@ const PORT = Number(process.env.PORT || 3000);
 // Tuned for phones: the 109MiB NNUE net already dominates memory.
 const ENGINE_BIN = process.env.ENGINE_BIN || join(ROOT, 'stockfish/stockfish-android-arm64-universal');
 const DEFAULT_DEPTH = Number(process.env.DEPTH || 14);
-const THREADS = Number(process.env.THREADS || 2);
+const THREADS = Number(process.env.THREADS || 1);
 const HASH = Number(process.env.HASH || 128);
 
 // Tuned for phones: the 109MiB NNUE net already dominates memory.
