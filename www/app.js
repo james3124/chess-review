@@ -5,6 +5,8 @@ import { analyzeGame } from './lib/analyze.mjs';
 import { Chess } from './vendor/chess.js';
 import { LABELS, summarise } from './lib/classify.js';
 import { engine as bridge } from './native-bridge.js';
+import { chessCom } from './chesscom-bridge.js';
+import { gameTitle, gameResult, timeClassLabel, ecoLabel, formatDate, toParsedGame } from './chesscom.mjs';
 
 /* ---------------- dom ---------------- */
 const $ = (sel) => document.querySelector(sel);
@@ -15,7 +17,9 @@ const ui = {
   gp: $('#game-progress'), gpText: $('#gp-text'), gpFill: $('#gp-fill'),
   moveLabel: $('#move-label'), analysis: $('#analysis'), movelist: $('#movelist'),
   evalFill: $('#evalfill'), evalLabel: $('#evallabel'),
-  fileInput: $('#file-input'), pasteDialog: $('#paste-dialog'), pasteText: $('#paste-text')
+  fileInput: $('#file-input'), pasteDialog: $('#paste-dialog'), pasteText: $('#paste-text'),
+  cc: $('#cc'), ccMsg: $('#cc-msg'), ccProfile: $('#cc-profile'), ccMonths: $('#cc-months'),
+  ccGames: $('#cc-games'), ccMore: $('#cc-more')
 };
 
 const S = {
@@ -107,13 +111,138 @@ function loadPgn(text) {
 }
 
 function show(el) {
-  for (const x of [ui.welcome, ui.picker, ui.game, ui.progress]) x.hidden = x !== el;
+  for (const x of [ui.welcome, ui.picker, ui.game, ui.progress, ui.cc]) x.hidden = x !== el;
 }
 
+/* ---------------- chess.com player search ---------------- */
+const CC = { user: null, months: [], month: null, games: [], shown: 0, PAGE: 40 };
+
+function ccMsg(text, bad = false) {
+  ui.ccMsg.hidden = !text;
+  ui.ccMsg.textContent = text;
+  ui.ccMsg.className = 'cc-msg' + (bad ? ' bad' : '');
+}
+
+function ccReset() {
+  ui.ccProfile.hidden = true;
+  ui.ccMonths.hidden = true;
+  ui.ccGames.hidden = true;
+  ui.ccMore.hidden = true;
+  ui.ccGames.innerHTML = '';
+  CC.user = null; CC.months = []; CC.month = null; CC.games = []; CC.shown = 0;
+  ccMsg('');
+}
+
+async function ccSearch() {
+  const name = $('#cc-user').value.trim();
+  ccReset();
+  if (!name) { ccMsg('Type a chess.com username first.', true); return; }
+
+  $('#cc-go').disabled = true;
+  ccMsg('Searching chess.com…');
+  try {
+    const info = await chessCom.search(name);
+    CC.user = info;
+    CC.months = info.months.slice(0, 6); // recent months only
+
+    $('#cc-avatar').src = info.avatar;
+    $('#cc-avatar').onerror = () => { $('#cc-avatar').style.visibility = 'hidden'; };
+    $('#cc-name').textContent = info.name;
+    $('#cc-sub').textContent = [info.country, info.months.length + ' months of games']
+      .filter(Boolean).join(' · ');
+    $('#cc-link').href = info.url;
+    ui.ccProfile.hidden = false;
+
+    renderMonths();
+    await ccLoadMonth(CC.months[0]);
+  } catch (err) {
+    ccMsg(err.notFound || err.invalid
+      ? `Couldn't find "${name}" on chess.com — check the spelling, or the profile is private.`
+      : `${err.message}. Try again in a moment.`, true);
+  } finally {
+    $('#cc-go').disabled = false;
+  }
+}
+
+function renderMonths() {
+  ui.ccMonths.innerHTML = CC.months.map((m) =>
+    `<button class="cc-month${m === CC.month ? ' active' : ''}" data-m="${m}">${m.replace('-', '/')}</button>`
+  ).join('');
+  ui.ccMonths.hidden = false;
+  ui.ccMonths.querySelectorAll('.cc-month').forEach((b) => {
+    b.onclick = () => ccLoadMonth(b.dataset.m);
+  });
+}
+
+async function ccLoadMonth(month) {
+  if (!CC.user || !month) return;
+  CC.month = month;
+  renderMonths();
+  ui.ccGames.hidden = false;
+  ui.ccGames.innerHTML = '<div class="cc-note">loading games…</div>';
+  ui.ccMore.hidden = true;
+  ccMsg('');
+  try {
+    CC.games = await chessCom.games(CC.user.username, month);
+    CC.shown = 0;
+    renderGames();
+    if (!CC.games.length) ui.ccGames.innerHTML = '<div class="cc-note">No games in this month.</div>';
+  } catch (err) {
+    ui.ccGames.innerHTML = '';
+    ccMsg(`Couldn't load ${month}: ${err.message}`, true);
+  }
+}
+
+function renderGames() {
+  const slice = CC.games.slice(CC.shown, CC.shown + CC.PAGE);
+  CC.shown += slice.length;
+  ui.ccGames.insertAdjacentHTML('beforeend', slice.map((g) => `
+    <div class="cc-game" data-u="${g.uuid}">
+      <div class="cc-game-top">
+        <span class="cc-players">${esc(gameTitle(g))}</span>
+        <span class="cc-tc">${esc(timeClassLabel(g.timeClass))}${g.rated ? '' : ' · casual'}</span>
+      </div>
+      <div class="cc-game-meta">
+        <span class="cc-res">${gameResult(g)}</span>
+        <span>${esc(ecoLabel(g.eco))}</span>
+        <span>${esc(formatDate(g.endTime))}</span>
+        ${g.acc && (g.acc.white || g.acc.black)
+          ? `<span title="chess.com's own accuracy">accu ${esc(g.acc.white || '?')}–${esc(g.acc.black || '?')}</span>` : ''}
+      </div>
+      <div class="cc-game-actions">
+        <button class="btn small cc-analyse">Analyse</button>
+        ${g.url ? `<a class="btn small ghost" href="${esc(g.url)}" target="_blank" rel="noopener">chess.com</a>` : ''}
+      </div>
+    </div>`).join(''));
+
+  ui.ccGames.querySelectorAll('.cc-game').forEach((row) => {
+    row.querySelector('.cc-analyse').onclick = () => {
+      const g = CC.games.find((x) => String(x.uuid) === row.dataset.u);
+      if (g) openChessComGame(g);
+    };
+  });
+
+  ui.ccMore.hidden = CC.shown >= CC.games.length;
+}
+
+function openChessComGame(g) {
+  const parsed = toParsedGame(g);
+  if (!parsed.ok) return ccMsg('That game has no readable moves (' + parsed.error + ').', true);
+  S.games = [parsed];
+  S.idx = 0;
+  openGame(parsed);
+}
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 function startGame(i) {
-  const g = S.games[i];
-  if (!g.ok) return alert('This game could not be parsed: ' + g.error);
-  S.idx = i; S.game = g; S.cursor = 0;
+  openGame(S.games[i]);
+}
+
+function openGame(g) {
+  if (!g.ok) return alert('This game could not be parsed: ' + (g.error || 'unknown error'));
+  S.game = g; S.cursor = 0;
 
   // Show the game IMMEDIATELY — no engine needed for the board or the moves.
   // Labels are filled in by analyse(), which streams them as they arrive.
@@ -319,6 +448,15 @@ function wire() {
   const openPaste = () => { ui.pasteText.value = ''; ui.pasteDialog.showModal(); };
   $('#btn-paste').onclick = openPaste;
   $('#btn-paste-2').onclick = openPaste;
+
+  // chess.com player search
+  const openCc = () => { show(ui.cc); $('#cc-user').focus(); };
+  $('#btn-cc').onclick = openCc;
+  $('#btn-cc-2').onclick = openCc;
+  $('#cc-go').onclick = ccSearch;
+  $('#cc-load-more').onclick = renderGames;
+  $('#cc-user').addEventListener('keydown', (e) => { if (e.key === 'Enter') ccSearch(); });
+  $('#cc-user').addEventListener('input', () => ccMsg(''));
   $('#paste-cancel').onclick = () => ui.pasteDialog.close();
   $('#paste-ok').onclick = () => {
     const t = ui.pasteText.value.trim();

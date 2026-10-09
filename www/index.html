@@ -14,6 +14,7 @@
 <header id="topbar">
   <div class="brand"><span class="knight">&#9822;</span> Chess Review</div>
   <div class="top-actions">
+    <button id="btn-cc" class="btn ghost">Search</button>
     <!-- a <label for> opens the picker natively; an input with display:none
          is not clickable on Android WebViews, so it stays laid out (1px) -->
     <label id="btn-load" class="btn" for="file-input">PGN</label>
@@ -39,7 +40,33 @@
        Inaccuracy, Mistake, Miss or Blunder.</p>
     <label class="btn big" id="btn-load-2" for="file-input">Choose .pgn file</label>
     <button class="btn big ghost" id="btn-paste-2">Paste PGN text</button>
+    <button class="btn big ghost" id="btn-cc-2">Find a chess.com player</button>
     <div class="hint">Engine: bundled Stockfish &middot; depth <span id="welcome-depth">14</span></div>
+  </section>
+
+  <!-- chess.com player search -->
+  <section id="cc" hidden>
+    <div class="card cc-search">
+      <div class="cc-row">
+        <input id="cc-user" type="text" placeholder="chess.com username" autocomplete="off"
+               autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <button class="btn" id="cc-go">Search</button>
+      </div>
+      <div id="cc-msg" class="cc-msg" hidden></div>
+    </div>
+
+    <div id="cc-profile" class="card cc-profile" hidden>
+      <img id="cc-avatar" class="cc-avatar" alt="" src="">
+      <div class="cc-id">
+        <div id="cc-name" class="cc-name"></div>
+        <div id="cc-sub" class="cc-sub"></div>
+      </div>
+      <a id="cc-link" class="cc-link" target="_blank" rel="noopener">open &nearr;</a>
+    </div>
+
+    <div id="cc-months" class="cc-months" hidden></div>
+    <div id="cc-games" class="cc-games" hidden></div>
+    <div id="cc-more" hidden><button class="btn ghost big" id="cc-load-more">Load more</button></div>
   </section>
 
   <!-- game picker (multi-game PGNs) -->

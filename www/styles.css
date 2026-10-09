@@ -172,6 +172,49 @@ body {
 .an-bar { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
 .an-bar b { display: block; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
 
+/* ---------- chess.com player search ---------- */
+.cc-search { display: block; }
+.cc-row { display: flex; gap: 8px; }
+#cc-user {
+  flex: 1; min-width: 0; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 15px;
+}
+#cc-user:focus { outline: 2px solid var(--green); outline-offset: -1px; }
+.cc-msg { margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.cc-msg.bad { color: var(--inaccuracy); }
+
+.cc-profile { display: flex; align-items: center; gap: 10px; }
+.cc-avatar {
+  width: 46px; height: 46px; border-radius: 50%; background: var(--panel-2);
+  border: 1px solid var(--line); flex: none; object-fit: cover;
+}
+.cc-id { flex: 1; min-width: 0; }
+.cc-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-sub { font-size: 12px; color: var(--muted); }
+.cc-link { color: var(--green); font-size: 12px; text-decoration: none; flex: none; }
+
+.cc-months { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; }
+.cc-month {
+  appearance: none; border: 1px solid var(--line); background: var(--panel);
+  color: var(--muted); border-radius: 16px; padding: 6px 12px; font-size: 12px;
+  white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.cc-month.active { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+
+.cc-games { display: flex; flex-direction: column; gap: 8px; }
+.cc-note { font-size: 13px; color: var(--muted); padding: 12px 4px; text-align: center; }
+.cc-game {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px; display: flex; flex-direction: column; gap: 7px;
+}
+.cc-game-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.cc-players { font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-tc { font-size: 11px; color: var(--muted); flex: none; }
+.cc-game-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; color: var(--muted); }
+.cc-res { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.cc-game-actions { display: flex; gap: 6px; }
+.cc-game-actions .btn, .cc-game-actions .cc-link { text-decoration: none; display: inline-block; }
+
 /* ---------- legend ---------- */
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .legend .chip {

@@ -9,6 +9,7 @@
 import express from 'express';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,6 +93,66 @@ app.post('/api/eval', async (req, res) => {
 app.post('/api/engine/warm', (req, res) => {
   ensureEngine();
   res.json({ state: engineState });
+});
+
+/* ------------------------------------------------------------------ */
+/* chess.com public API proxy (browser UA + cache)                      */
+/*                                                                      */
+/* A pass-through: the client (www/chesscom.mjs) fetches the same       */
+/* paths here that it would fetch from api.chess.com, so only the base  */
+/* URL changes. That keeps the raw chess.com JSON shapes intact and the */
+/* two transports interchangeable. We add a browser User-Agent (which   */
+/* Cloudflare requires and browsers cannot set themselves) and cache.   */
+/* ------------------------------------------------------------------ */
+import { BROWSER_UA } from './www/chesscom.mjs';
+
+const CC_API = 'https://api.chess.com/pub';
+const CC_CACHE_DIR = join(ROOT, 'data/chesscom');
+
+function ccTtlFor(path) {
+  if (path.includes('/archives')) return 5 * 60_000;
+  if (/\/games\/\d{4}\/\d{2}$/.test(path)) return 30 * 60_000; // a month
+  return 30 * 60_000;                                          // player / stats
+}
+
+app.get('/api/chesscom/*', async (req, res) => {
+  const path = '/' + req.params[0]; // e.g. /player/erik/games/2026/10
+  if (!path.startsWith('/player/')) {
+    return res.status(404).json({ error: 'unsupported chess.com path' });
+  }
+
+  try {
+    if (!existsSync(CC_CACHE_DIR)) await mkdir(CC_CACHE_DIR, { recursive: true });
+    const file = join(CC_CACHE_DIR, path.toLowerCase().replace(/[^a-z0-9_-]/g, '_') + '.json');
+    const ttl = ccTtlFor(path);
+
+    if (existsSync(file)) {
+      try {
+        const hit = JSON.parse(await readFile(file, 'utf8'));
+        if (Date.now() - hit.at < ttl) return res.json(hit.data);
+      } catch { /* stale/corrupt: refetch */ }
+    }
+
+    const upstream = await fetch(CC_API + path, {
+      headers: { 'User-Agent': BROWSER_UA, Accept: 'application/json' },
+      redirect: 'follow'
+    });
+    const body = await upstream.text();
+
+    // Cloudflare answers with an HTML challenge and a 200.
+    if (/just a moment|cf-challenge|challenge-platform/i.test(body)) {
+      return res.status(502).json({ error: 'chess.com is blocking this request' });
+    }
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: `chess.com HTTP ${upstream.status}` });
+    }
+
+    const data = JSON.parse(body);
+    await writeFile(file, JSON.stringify({ at: Date.now(), data })).catch(() => {});
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'chess.com fetch failed' });
+  }
 });
 
 /* ------------------------------------------------------------------ */
