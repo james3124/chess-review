@@ -1,0 +1,26 @@
+node_modules/
+dist/
+data/
+*.log
+.DS_Store
+
+# --- engine binary: fetched by CI, never committed (100MB + GPL source is upstream) ---
+/stockfish-android-arm64-universal.tar.gz
+/stockfish/
+android/app/src/main/jniLibs/
+
+# --- android build output ---
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+
+# generated web bundle
+www/vendor/
+
+*.keystore
+!debug.keystore
+.vscode/
+.idea/

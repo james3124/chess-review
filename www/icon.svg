@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#302e2b"/>
+  <g>
+    <rect x="120" y="120" width="272" height="272" fill="#ebecd0"/>
+    <rect x="120" y="248" width="136" height="144" fill="#779556"/>
+    <rect x="256" y="120" width="136" height="128" fill="#779556"/>
+  </g>
+  <text x="256" y="392" font-size="300" text-anchor="middle"
+        font-family="Segoe UI Symbol, Noto Sans Symbols 2, serif"
+        fill="#fbfbf9" stroke="#17171a" stroke-width="14" paint-order="stroke">&#9822;</text>
+</svg>

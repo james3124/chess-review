@@ -1,0 +1,15 @@
+{
+  "name": "Chess Review",
+  "short_name": "Chess Review",
+  "description": "Analyse a chess PGN with chess.com-style move labels, powered by Stockfish",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1d1b19",
+  "theme_color": "#302e2b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

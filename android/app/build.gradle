@@ -1,0 +1,91 @@
+apply plugin: 'com.android.application'
+
+/*
+ * Chess Review — engine packaging notes:
+ * The APK cannot exec from a file inside its own compressed APK, so the
+ * bundled Stockfish binary is packaged as jniLibs/arm64-v8a/libstockfishengine.so
+ * with `useLegacyPackaging` (i.e. extractNativeLibs="true"), which makes
+ * Android unpack it into applicationInfo.nativeLibraryDir — a real,
+ * executable path that EnginePlugin runs via ProcessBuilder.
+ */
+android {
+    namespace "com.chessreview.app"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.chessreview.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+        ndk {
+            // only the arm64 build of Stockfish is shipped
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    packagingOptions {
+        // extract libs to disk so the engine can be exec'd (not just dlopen'd)
+        jniLibs.useLegacyPackaging = true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+/* Copies the Stockfish binary from the repo root into jniLibs before building.
+ * GitHub Actions places it in the same location in the build job. */
+def engineSrcFile = new File(rootDir, '../stockfish/stockfish-android-arm64-universal')
+def engineDstFile = new File(projectDir, 'src/main/jniLibs/arm64-v8a/libstockfishengine.so')
+
+tasks.register('placeEngine') {
+    outputs.upToDateWhen { engineDstFile.exists() && engineDstFile.length() > 1000000L }
+    doLast {
+        if (engineSrcFile.exists()) {
+            engineDstFile.parentFile.mkdirs()
+            engineDstFile.bytes = engineSrcFile.bytes
+            logger.lifecycle("placeEngine: copied ${engineSrcFile.length()} bytes -> ${engineDstFile}")
+        } else {
+            logger.warn("placeEngine: no engine at ${engineSrcFile}; APK will have no Stockfish")
+        }
+    }
+}
+tasks.named('preBuild') { dependsOn 'placeEngine' }
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

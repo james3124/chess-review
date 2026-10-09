@@ -1,0 +1,13 @@
+{
+  "appId": "com.chessreview.app",
+  "appName": "Chess Review",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

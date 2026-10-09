@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chess Review</string>
+    <string name="title_activity_main">Chess Review</string>
+    <string name="package_name">com.chessreview.app</string>
+    <string name="custom_url_scheme">com.chessreview.app</string>
+</resources>

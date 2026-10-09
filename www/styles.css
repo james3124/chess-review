@@ -1,0 +1,196 @@
+/* styles.css — chess.com-flavoured dark theme, mobile first */
+
+:root {
+  --bg: #1d1b19;
+  --panel: #302e2b;
+  --panel-2: #3a3835;
+  --text: #f1eeea;
+  --muted: #a29e99;
+  --line: #4a4744;
+  --green: #81b64c;
+  --green-dark: #5f8f36;
+  --brilliant: #26c2a3;
+  --great: #5c8bb0;
+  --best: #9bcb60;
+  --good: #96bc4b;
+  --inaccuracy: #f0c15c;
+  --mistake: #e6912c;
+  --miss: #e6912c;
+  --blunder: #ca3431;
+  --book: #a2887e;
+  --light-sq: #ebecd0;
+  --dark-sq: #739552;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  overscroll-behavior-y: contain;
+}
+
+/* ---------- top bar ---------- */
+#topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(8px + var(--safe-t)) 12px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+.knight { color: var(--green); font-size: 20px; }
+.top-actions { display: flex; gap: 8px; }
+
+.engine-bar {
+  font-size: 12px; color: var(--muted);
+  padding: 6px 12px; background: var(--panel-2);
+  display: flex; justify-content: space-between; gap: 8px;
+}
+.engine-bar.ok { color: var(--green); }
+.engine-bar.bad { color: var(--blunder); }
+
+/* ---------- buttons ---------- */
+.btn {
+  appearance: none; border: 0; border-radius: 6px;
+  background: var(--green); color: #fff; font-weight: 600;
+  padding: 9px 14px; font-size: 14px; cursor: pointer;
+}
+.btn:active { filter: brightness(1.15); }
+.btn.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+.btn.big { width: 100%; padding: 14px; font-size: 16px; margin-top: 10px; }
+.btn.icon { background: var(--panel-2); border: 1px solid var(--line); padding: 8px 12px; min-width: 42px; }
+.btn[disabled] { opacity: .45; }
+
+/* ---------- layout ---------- */
+#main { padding: 10px; max-width: 560px; margin: 0 auto; }
+.card { background: var(--panel); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+#welcome h1 { margin: 4px 0 8px; font-size: 20px; }
+#welcome p { color: var(--muted); line-height: 1.45; font-size: 14px; }
+.hint { margin-top: 12px; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* ---------- players ---------- */
+.players { display: flex; align-items: center; justify-content: space-between; }
+.player { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+.player:last-child { justify-content: flex-end; }
+.pname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid #000; flex: none; }
+.dot.white { background: #f0efe9; }
+.dot.black { background: #222; }
+.pacc { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.result { font-weight: 700; color: var(--green); padding: 0 8px; }
+
+/* ---------- eval bar ---------- */
+#evalbar {
+  position: relative; height: 16px; border-radius: 8px; overflow: hidden;
+  background: #111; margin-bottom: 8px; border: 1px solid var(--line);
+}
+#evalfill { height: 100%; width: 50%; background: var(--text); transition: width .25s ease; }
+#evallabel {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #888; mix-blend-mode: difference;
+}
+
+/* ---------- board ---------- */
+#board-wrap { position: relative; }
+#board { width: 100%; display: block; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+
+/* rendered by board.js */
+#board text.piece {
+  font-size: 86px; text-anchor: middle; dominant-baseline: central;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif;
+  paint-order: stroke; stroke-width: 3px; stroke-linejoin: round;
+  pointer-events: none;
+}
+#board text.piece.w { fill: #fbfbf9; stroke: #17171a; }
+#board text.piece.b { fill: #26262a; stroke: #0a0a0c; }
+#board text.coord {
+  font-size: 15px; font-weight: 700; fill: #4b4b3f; opacity: .85;
+  font-family: system-ui, sans-serif; pointer-events: none;
+}
+#board text.coord:nth-of-type(n) { fill: #4b4b3f; }
+#board-loading {
+  position: absolute; right: 10px; top: 10px; display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,.65); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 12px;
+}
+.spinner {
+  width: 12px; height: 12px; border: 2px solid #fff3; border-top-color: #fff;
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- controls ---------- */
+#controls { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+#move-label { flex: 1; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ---------- analysis ---------- */
+.analysis { display: none; }
+.analysis.has-data { display: block; }
+.an-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.an-badge {
+  font-size: 12px; font-weight: 700; color: #fff; padding: 3px 8px; border-radius: 4px;
+}
+.an-loss { color: var(--muted); font-size: 12px; }
+.an-best { font-size: 14px; line-height: 1.5; }
+.an-best b { color: var(--best); }
+.an-pv { color: var(--muted); font-size: 13px; }
+.an-bars { display: flex; gap: 6px; margin-top: 8px; }
+.an-bar { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+.an-bar b { display: block; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ---------- legend ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.legend .chip {
+  font-size: 11px; padding: 3px 7px; border-radius: 4px; color: #fff; font-weight: 600;
+}
+
+/* ---------- move list ---------- */
+.movelist { padding: 6px; }
+.mv-grid { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 2px 4px; align-items: center; }
+.mv-num { color: var(--muted); font-size: 12px; text-align: right; padding-right: 4px; font-variant-numeric: tabular-nums; }
+.mv {
+  display: flex; align-items: center; gap: 5px; padding: 5px 6px; border-radius: 5px;
+  font-size: 14px; cursor: pointer; border: 1px solid transparent; font-variant-numeric: tabular-nums;
+}
+.mv:hover { background: var(--panel-2); }
+.mv.active { background: #4a4744; border-color: var(--line); }
+.mv .tag {
+  font-size: 10px; font-weight: 700; color: #fff; padding: 1px 5px; border-radius: 3px; flex: none;
+}
+.mv .loss { font-size: 10px; color: var(--muted); margin-left: auto; }
+.mv .noselect { color: var(--muted); }
+
+/* ---------- progress ---------- */
+#progress { text-align: center; padding: 14px 10px; }
+#progress .bar {
+  height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; margin-bottom: 8px;
+}
+#bar-fill { height: 100%; width: 0%; background: var(--green); transition: width .2s ease; }
+#progress-text { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+
+/* ---------- picker ---------- */
+.picker-list { list-style: none; margin: 0; padding: 0; }
+.picker-list li {
+  padding: 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; cursor: pointer;
+  display: flex; justify-content: space-between; gap: 8px; font-size: 14px;
+}
+.picker-list li:hover { background: var(--panel-2); }
+.picker-list .meta { color: var(--muted); font-size: 12px; }
+
+/* ---------- dialog ---------- */
+dialog {
+  border: 0; border-radius: 12px; background: var(--panel); color: var(--text);
+  width: min(92vw, 520px); padding: 16px;
+}
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog h3 { margin: 0 0 10px; }
+textarea {
+  width: 100%; height: 40vh; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 13px;
+  font-family: ui-monospace, monospace;
+}
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }

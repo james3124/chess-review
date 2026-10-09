@@ -1,0 +1,28 @@
+{
+  "name": "chess-review",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Mobile chess PGN analyzer with chess.com-style move classification, powered by Stockfish",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "cap": "cap",
+    "sync": "npm run build:web && cap sync android",
+    "test": "node test/run-sample.mjs"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.3.0",
+    "@capacitor/cli": "^7.3.0",
+    "@capacitor/core": "^7.3.0"
+  }
+}

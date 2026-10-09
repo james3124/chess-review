@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#302e2b">
+  <title>Chess Review</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand"><span class="knight">&#9822;</span> Chess Review</div>
+  <div class="top-actions">
+    <button id="btn-load" class="btn">PGN</button>
+    <button id="btn-paste" class="btn ghost">Paste</button>
+  </div>
+</header>
+
+<div id="engine-bar" class="engine-bar">engine: starting&hellip;</div>
+
+<main id="main">
+
+  <!-- empty / welcome -->
+  <section id="welcome" class="card">
+    <h1>Analyse a game</h1>
+    <p>Load a <b>.pgn</b> file from your phone, or paste one in. Every move gets a
+       chess.com-style label: Brilliant, Best, Excellent, Good, Book,
+       Inaccuracy, Mistake, Miss or Blunder.</p>
+    <button class="btn big" id="btn-load-2">Choose .pgn file</button>
+    <button class="btn big ghost" id="btn-paste-2">Paste PGN text</button>
+    <div class="hint">Engine: bundled Stockfish &middot; depth <span id="welcome-depth">14</span></div>
+  </section>
+
+  <!-- game picker (multi-game PGNs) -->
+  <section id="picker" class="card" hidden>
+    <h2>Pick a game</h2>
+    <ul id="picker-list" class="picker-list"></ul>
+  </section>
+
+  <!-- analysis view -->
+  <section id="game" hidden>
+    <div class="players card">
+      <div class="player" id="player-white">
+        <span class="dot white"></span>
+        <span class="pname" id="name-white">White</span>
+        <span class="pacc" id="acc-white"></span>
+      </div>
+      <div class="result" id="result"></div>
+      <div class="player" id="player-black">
+        <span class="pacc" id="acc-black"></span>
+        <span class="pname" id="name-black">Black</span>
+        <span class="dot black"></span>
+      </div>
+    </div>
+
+    <div id="evalbar"><div id="evalfill"></div><span id="evallabel"></span></div>
+
+    <div id="board-wrap">
+      <svg id="board" viewBox="0 0 800 800" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="board-loading" hidden><div class="spinner"></div><span>Engine thinking&hellip;</span></div>
+    </div>
+
+    <div id="controls">
+      <button class="btn icon" id="nav-first" title="Start">&#9198;</button>
+      <button class="btn icon" id="nav-prev" title="Previous">&#9664;</button>
+      <span id="move-label">start</span>
+      <button class="btn icon" id="nav-next" title="Next">&#9654;</button>
+      <button class="btn icon" id="nav-last" title="End">&#9197;</button>
+      <button class="btn icon" id="nav-flip" title="Flip board">&#8646;</button>
+    </div>
+
+    <div id="analysis" class="card analysis"></div>
+    <div id="legend" class="legend"></div>
+    <div id="movelist" class="card movelist"></div>
+  </section>
+
+  <div id="progress" hidden>
+    <div class="bar"><div id="bar-fill"></div></div>
+    <div id="progress-text"> analysing&hellip;</div>
+    <button class="btn ghost" id="btn-cancel">Cancel</button>
+  </div>
+
+</main>
+
+<dialog id="paste-dialog">
+  <h3>Paste PGN</h3>
+  <textarea id="paste-text" placeholder='[Event "..."]
+
+1. e4 e5 ...'></textarea>
+  <div class="dialog-actions">
+    <button class="btn ghost" id="paste-cancel">Cancel</button>
+    <button class="btn" id="paste-ok">Analyse</button>
+  </div>
+</dialog>
+
+<input type="file" id="file-input" accept=".pgn,.txt,text/plain" hidden>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
