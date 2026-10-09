@@ -85,6 +85,11 @@ public class EnginePlugin extends Plugin {
         }
     }
 
+    /** Full-budget convenience overload (Kotlin's default arg). */
+    private SearchResult runSearch(String positionCmd, String goCmd) {
+        return runSearch(positionCmd, goCmd, 120000);
+    }
+
     /** Reads every `info` line until `bestmove`, with a wall-clock budget. */
     private SearchResult runSearch(String positionCmd, String goCmd, long budgetMs) {
         LinkedBlockingQueue<String> q = new LinkedBlockingQueue<>();
