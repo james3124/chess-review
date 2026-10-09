@@ -219,12 +219,14 @@ public class EnginePlugin extends Plugin {
             send("ucinewgame");
             send("position startpos");
 
-            // the NNUE load is triggered by the first `go`; retry until real
+            // the NNUE load is triggered by the first `go`; retry until real.
+            // Be patient: this load is the slowest part of a cold start on a
+            // phone, and failing here would break the launch entirely.
             boolean healthy = false;
-            for (int attempt = 1; attempt <= 15; attempt++) {
-                SearchResult r = runSearch("position startpos", "go depth 2", 60000);
+            for (int attempt = 1; attempt <= 60; attempt++) {
+                SearchResult r = runSearch("position startpos", "go depth 2", 120000);
                 if (!broken(r)) { healthy = true; break; }
-                Thread.sleep(600);
+                Thread.sleep(500);
             }
             if (!healthy) throw new IllegalStateException("engine never produced a real search");
         }

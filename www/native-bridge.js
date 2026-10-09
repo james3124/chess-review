@@ -91,7 +91,7 @@ export const engine = {
       }));
     }
     let lastErr = '';
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 90; attempt++) {
       const r = await fetch(`${API_BASE}/api/eval`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
