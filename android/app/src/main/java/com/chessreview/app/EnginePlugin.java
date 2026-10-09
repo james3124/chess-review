@@ -15,7 +15,6 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -272,31 +271,54 @@ public class EnginePlugin extends Plugin {
         executor.execute(() -> {
             try {
                 ensureStarted();
-                bridge.getActivity().runOnUiThread(() -> call.resolve(new JSObject().put("ready", true)));
+                bridge.getActivity().runOnUiThread(() -> {
+                    JSObject o = new JSObject();
+                    try { o.put("ready", true); call.resolve(o); }
+                    catch (Exception e) { call.reject("json error"); }
+                });
             } catch (Exception e) {
                 bridge.getActivity().runOnUiThread(() -> call.reject(e.getMessage() == null ? "engine init failed" : e.getMessage()));
             }
         });
     }
 
+    /** Defensive copy — swallows the checked JSONException. */
+    private JSObject clone(JSObject o) {
+        try { return new JSObject(o.toString()); } catch (Exception e) { return new JSObject(); }
+    }
+
+    /** Resolve with extra fields, never leaking a checked exception to javac. */
+    private void resolveWith(PluginCall call, JSObject o, String state, String error) {
+        try {
+            o.put("state", state);
+            if (error != null) o.put("error", error);
+            call.resolve(o);
+        } catch (Exception e) {
+            call.reject("json error");
+        }
+    }
+
     @PluginMethod
     public void engineInfo(PluginCall call) {
-        JSObject info = new JSObject()
-                .put("ready", proc != null && proc.isAlive())
-                .put("binary", engineFile().getAbsolutePath())
-                .put("binaryPresent", engineFile().exists())
-                .put("threads", THREADS)
-                .put("hash", HASH_MB)
-                .put("multiPv", 2);
+        JSObject info = new JSObject();
+        try {
+            info.put("ready", proc != null && proc.isAlive())
+                    .put("binary", engineFile().getAbsolutePath())
+                    .put("binaryPresent", engineFile().exists())
+                    .put("threads", THREADS)
+                    .put("hash", HASH_MB)
+                    .put("multiPv", 2);
+        } catch (Exception ignored) { }
+        final JSObject snapshot = info;
+
         executor.execute(() -> {
             try {
                 ensureStarted();
-                JSObject out = new JSObject(info.toString());
-                bridge.getActivity().runOnUiThread(() -> call.resolve(out.put("state", "ready")));
+                JSObject out = clone(snapshot);
+                bridge.getActivity().runOnUiThread(() -> resolveWith(call, out, "ready", null));
             } catch (Exception e) {
-                JSObject out = new JSObject(info.toString());
-                bridge.getActivity().runOnUiThread(() -> call.resolve(
-                        out.put("state", "failed").put("error", e.getMessage() == null ? "unknown" : e.getMessage())));
+                JSObject out = clone(snapshot);
+                bridge.getActivity().runOnUiThread(() -> resolveWith(call, out, "failed", e.getMessage()));
             }
         });
     }
