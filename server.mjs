@@ -26,6 +26,7 @@ const DEFAULT_DEPTH = Number(process.env.DEPTH || 14);
 const THREADS = Number(process.env.THREADS || 2);
 const HASH = Number(process.env.HASH || 128);
 
+// Tuned for phones: the 109MiB NNUE net already dominates memory.
 const engine = new UCIEngine({ binary: ENGINE_BIN, threads: THREADS, hash: HASH, multiPv: 2 });
 const jobs = new Map();
 
@@ -42,7 +43,15 @@ engine.start()
   .catch((err) => { engineState = 'failed'; console.error('[engine] failed:', err.message); });
 
 app.get('/api/engine', (req, res) => {
-  res.json({ state: engineState, depth: DEFAULT_DEPTH, threads: THREADS, binary: ENGINE_BIN, engineOk: existsSync(ENGINE_BIN) });
+  res.json({
+    state: engineState,
+    version: engine.version || null,
+    depth: DEFAULT_DEPTH,
+    threads: THREADS,
+    hash: HASH,
+    binary: ENGINE_BIN,
+    engineOk: existsSync(ENGINE_BIN)
+  });
 });
 
 /**

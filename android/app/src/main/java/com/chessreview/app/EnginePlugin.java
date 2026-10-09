@@ -61,6 +61,7 @@ public class EnginePlugin extends Plugin {
 
     private volatile Process proc;
     private BufferedWriter writer;
+    private volatile String version = null;
 
     /* ------------------------------------------------------------------ */
     /* process plumbing                                                    */
@@ -79,6 +80,7 @@ public class EnginePlugin extends Plugin {
     }
 
     private void dispatch(String line) {
+        if (line != null && line.startsWith("id name ")) version = line.substring(8).trim();
         synchronized (queues) {
             for (LinkedBlockingQueue<String> q : queues) q.offer(line);
         }
@@ -303,6 +305,7 @@ public class EnginePlugin extends Plugin {
         JSObject info = new JSObject();
         try {
             info.put("ready", proc != null && proc.isAlive())
+                    .put("version", version == null ? "Stockfish" : version)
                     .put("binary", engineFile().getAbsolutePath())
                     .put("binaryPresent", engineFile().exists())
                     .put("threads", THREADS)

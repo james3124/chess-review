@@ -61,6 +61,25 @@ export const engine = {
     return r.json();
   },
 
+  /**
+   * Only resolves once the engine can really search.
+   * HTTP: /api/engine replies instantly with state "starting" (the server
+   * boots Stockfish in the background), so we poll. Native: engineInfo()
+   * blocks until the plugin's own health check passes.
+   */
+  async waitReady(timeoutMs = 120000) {
+    if (native) return plugin.engineInfo();
+    const deadline = Date.now() + timeoutMs;
+    let last = null;
+    while (Date.now() < deadline) {
+      const r = await fetch(`${API_BASE}/api/engine`);
+      last = await r.json();
+      if (last.state === 'ready' || last.state === 'failed') return last;
+      await new Promise((res) => setTimeout(res, 700));
+    }
+    throw new Error('engine still starting after ' + Math.round(timeoutMs / 1000) + 's');
+  },
+
   /** @returns {Promise<{bestMove:string, ponder:string, lines:object}>} */
   async analyze(fen, o = {}) {
     if (native) {
@@ -69,12 +88,19 @@ export const engine = {
         movetime: o.movetime || 0
       }));
     }
-    const r = await fetch(`${API_BASE}/api/eval`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fen, depth: o.depth, movetime: o.movetime })
-    });
-    if (!r.ok) throw new Error(`engine HTTP ${r.status}`);
-    return r.json();
+    let lastErr = '';
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const r = await fetch(`${API_BASE}/api/eval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fen, depth: o.depth, movetime: o.movetime })
+      });
+      if (r.ok) return r.json();
+      // 503 = the server is still loading Stockfish's NNUE network: wait for it.
+      if (r.status !== 503) throw new Error(`engine HTTP ${r.status}`);
+      lastErr = await r.text();
+      await new Promise((res) => setTimeout(res, 700));
+    }
+    throw new Error('engine never became ready: ' + lastErr.slice(0, 80));
   }
 };

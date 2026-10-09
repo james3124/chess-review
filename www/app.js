@@ -37,6 +37,13 @@ function moveLabel(m) {
 }
 
 /* ---------------- engine bar ---------------- */
+let enginePromise = null; // shared: the engine may only be waited on once
+
+function engineReady() {
+  if (!enginePromise) enginePromise = bridge.waitReady();
+  return enginePromise;
+}
+
 async function initEngineBar() {
   const select = document.createElement('select');
   select.id = 'depth-select';
@@ -44,15 +51,27 @@ async function initEngineBar() {
     `<option value="${d}" ${d === S.depth ? 'selected' : ''}>depth ${d}</option>`).join('');
   select.onchange = () => { S.depth = Number(select.value); };
 
+  const t0 = Date.now();
+  const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  ui.engineBar.className = 'engine-bar loading';
+
+  // Tick a live counter while the ~109MiB NNUE network is being loaded.
+  const timer = setInterval(() => {
+    $('#engine-text').innerHTML = `starting engine &mdash; loading neural network (${elapsed()})`;
+  }, 250);
+
   try {
-    const info = await bridge.info();
+    const info = await engineReady();
+    if (info.state === 'failed') throw new Error(info.error || 'engine failed to start');
+    S.engineInfo = info;
     ui.engineBar.className = 'engine-bar ok';
-    ui.engineBar.innerHTML = `<span>${bridge.mode === 'native' ? 'built-in' : 'local'} engine: ${info.version || 'Stockfish'}</span>`;
+    $('#engine-text').innerHTML =
+      `engine ready: <b>${info.version || 'Stockfish'}</b> (${info.threads || '?'} threads &middot; ${info.hash || '?'} MB hash &middot; ${elapsed()})`;
   } catch (err) {
     ui.engineBar.className = 'engine-bar bad';
-    ui.engineBar.innerHTML = `<span>engine offline (${err.message}) — start with <code>npm start</code></span>`;
+    $('#engine-text').innerHTML = `engine unavailable (${err.message})`;
   }
-  ui.engineBar.appendChild(select);
+  $('#engine-depth').appendChild(select);
 }
 
 /* ---------------- loading PGNs ---------------- */
@@ -87,9 +106,20 @@ async function analyse(game) {
   S.abort?.abort();
   const ctrl = new AbortController();
   S.abort = ctrl;
+
+  // A game can be loaded/pasted while Stockfish is still booting: park here
+  // (with visible progress) until the engine can really search.
   show(ui.progress);
   ui.barFill.style.width = '0%';
-  ui.progressText.textContent = 'starting engine…';
+  ui.progressText.textContent = 'waiting for the engine to finish starting…';
+  try {
+    await engineReady();
+  } catch (err) {
+    show(S.games.length > 1 ? ui.picker : ui.welcome);
+    return alert('Could not start the engine: ' + err.message);
+  }
+
+  ui.progressText.textContent = 'engine ready — analysing…';
   try {
     const result = await analyzeGame(bridge, game, {
       depth: S.depth,

@@ -49,10 +49,30 @@ body {
 .engine-bar {
   font-size: 12px; color: var(--muted);
   padding: 6px 12px; background: var(--panel-2);
-  display: flex; justify-content: space-between; gap: 8px;
+  display: block; /* contains .engine-row (flex) + .engine-loader */
 }
 .engine-bar.ok { color: var(--green); }
 .engine-bar.bad { color: var(--blunder); }
+
+/* engine startup: indeterminate loading bar + elapsed seconds */
+.engine-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.engine-status { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.engine-status .spinner { flex: none; }
+#engine-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.engine-loader { height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; margin-top: 7px; overflow: hidden; }
+.engine-loader-fill {
+  width: 38%; height: 100%; border-radius: 2px; background: var(--green);
+  animation: engine-slide 1.15s cubic-bezier(.65,.05,.36,1) infinite;
+}
+.engine-bar.ok .engine-loader, .engine-bar.bad .engine-loader { display: none; }
+@keyframes engine-slide {
+  0%   { transform: translateX(-105%); }
+  100% { transform: translateX(275%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .engine-loader-fill { animation-duration: 2.6s; }
+}
 
 /* ---------- buttons ---------- */
 .btn {
@@ -113,10 +133,6 @@ body {
   font-family: system-ui, sans-serif; pointer-events: none;
 }
 #board text.coord:nth-of-type(n) { fill: #4b4b3f; }
-#board-loading {
-  position: absolute; right: 10px; top: 10px; display: flex; align-items: center; gap: 8px;
-  background: rgba(0,0,0,.65); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 12px;
-}
 .spinner {
   width: 12px; height: 12px; border: 2px solid #fff3; border-top-color: #fff;
   border-radius: 50%; animation: spin .8s linear infinite;

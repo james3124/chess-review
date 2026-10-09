@@ -19,7 +19,13 @@
   </div>
 </header>
 
-<div id="engine-bar" class="engine-bar">engine: starting&hellip;</div>
+<div id="engine-bar" class="engine-bar loading">
+  <div class="engine-row">
+    <span class="engine-status"><span class="spinner"></span><span id="engine-text">starting engine&hellip;</span></span>
+    <span id="engine-depth"></span>
+  </div>
+  <div class="engine-loader"><div class="engine-loader-fill"></div></div>
+</div>
 
 <main id="main">
 
@@ -60,7 +66,6 @@
 
     <div id="board-wrap">
       <svg id="board" viewBox="0 0 800 800" preserveAspectRatio="xMidYMid meet"></svg>
-      <div id="board-loading" hidden><div class="spinner"></div><span>Engine thinking&hellip;</span></div>
     </div>
 
     <div id="controls">
