@@ -25,8 +25,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # No `android-actions/setup-android` step: on ubuntu-24.04 the image's
+      # bundled sdkmanager is broken (cmdline-tools/16.0 exits 1 with
+      # "Failed to find package 'tools'"), and the SDK is already installed
+      # at /usr/local/lib/android/sdk with licences accepted.
 
       - name: Install npm dependencies
         run: npm ci
@@ -63,6 +65,9 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload APK
