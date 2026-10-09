@@ -28,6 +28,26 @@ const HASH = Number(process.env.HASH || 128);
 
 // Tuned for phones: the 109MiB NNUE net already dominates memory.
 const engine = new UCIEngine({ binary: ENGINE_BIN, threads: THREADS, hash: HASH, multiPv: 2 });
+let engineState = 'idle';          // idle -> starting -> ready | failed
+let engineError = null;
+let engineStartPromise = null;
+
+/** Starts Stockfish on demand. Opening the app must NOT load the 109MiB
+ *  NNUE network when there is no game to analyse yet. */
+function ensureEngine() {
+  if (engineStartPromise) return engineStartPromise;
+  if (engineState === 'ready') return Promise.resolve();
+  engineState = 'starting';
+  engineStartPromise = engine.start()
+    .then(() => { engineState = 'ready'; })
+    .catch((err) => {
+      engineState = 'failed';
+      engineError = err.message;
+      engineStartPromise = null; // allow a retry
+    });
+  return engineStartPromise;
+}
+
 const jobs = new Map();
 
 const app = express();
@@ -37,14 +57,11 @@ app.use(express.static(join(ROOT, 'www')));
 /* ------------------------------------------------------------------ */
 /* engine lifecycle                                                    */
 /* ------------------------------------------------------------------ */
-let engineState = 'starting';
-engine.start()
-  .then(() => { engineState = 'ready'; console.log('[engine] ready'); })
-  .catch((err) => { engineState = 'failed'; console.error('[engine] failed:', err.message); });
-
+/** Reports the current state WITHOUT starting the engine (the UI polls this). */
 app.get('/api/engine', (req, res) => {
   res.json({
     state: engineState,
+    error: engineError,
     version: engine.version || null,
     depth: DEFAULT_DEPTH,
     threads: THREADS,
@@ -60,6 +77,7 @@ app.get('/api/engine', (req, res) => {
  * (www/lib/analyze.mjs runs in the WebView there).
  */
 app.post('/api/eval', async (req, res) => {
+  ensureEngine(); // lazily boots Stockfish on the first request
   if (engineState !== 'ready') return res.status(503).json({ error: `engine not ready (${engineState})` });
   const { fen, depth, movetime } = req.body || {};
   if (!fen) return res.status(400).json({ error: 'missing fen' });
@@ -70,16 +88,22 @@ app.post('/api/eval', async (req, res) => {
   }
 });
 
+/** Kicks off the lazy engine load (the UI calls this when a game is loaded). */
+app.post('/api/engine/warm', (req, res) => {
+  ensureEngine();
+  res.json({ state: engineState });
+});
+
 /* ------------------------------------------------------------------ */
 /* analysis jobs                                                       */
 /* ------------------------------------------------------------------ */
 app.post('/api/analyze', async (req, res) => {
+  ensureEngine(); // lazily boots Stockfish on the first request
   if (engineState !== 'ready') {
     return res.status(503).json({ error: `engine not ready (${engineState})` });
   }
   const { pgn = '', depth } = req.body || {};
   if (!pgn.trim()) return res.status(400).json({ error: 'empty PGN' });
-  if (!engineState) return res.status(503);
 
   const parsed = parsePgn(pgn);
   const idx = Number(req.body.gameIndex || 0);

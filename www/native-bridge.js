@@ -69,6 +69,8 @@ export const engine = {
    */
   async waitReady(timeoutMs = 120000) {
     if (native) return plugin.engineInfo();
+    // The server boots Stockfish lazily, so kick it off, then poll.
+    await fetch(`${API_BASE}/api/engine/warm`, { method: 'POST' }).catch(() => {});
     const deadline = Date.now() + timeoutMs;
     let last = null;
     while (Date.now() < deadline) {

@@ -14,7 +14,9 @@
 <header id="topbar">
   <div class="brand"><span class="knight">&#9822;</span> Chess Review</div>
   <div class="top-actions">
-    <button id="btn-load" class="btn">PGN</button>
+    <!-- a <label for> opens the picker natively; an input with display:none
+         is not clickable on Android WebViews, so it stays laid out (1px) -->
+    <label id="btn-load" class="btn" for="file-input">PGN</label>
     <button id="btn-paste" class="btn ghost">Paste</button>
   </div>
 </header>
@@ -35,7 +37,7 @@
     <p>Load a <b>.pgn</b> file from your phone, or paste one in. Every move gets a
        chess.com-style label: Brilliant, Best, Excellent, Good, Book,
        Inaccuracy, Mistake, Miss or Blunder.</p>
-    <button class="btn big" id="btn-load-2">Choose .pgn file</button>
+    <label class="btn big" id="btn-load-2" for="file-input">Choose .pgn file</label>
     <button class="btn big ghost" id="btn-paste-2">Paste PGN text</button>
     <div class="hint">Engine: bundled Stockfish &middot; depth <span id="welcome-depth">14</span></div>
   </section>
@@ -48,6 +50,13 @@
 
   <!-- analysis view -->
   <section id="game" hidden>
+    <div id="game-progress" hidden>
+      <div class="gp-row">
+        <span id="gp-text" class="gp-text">waiting for the engine&hellip;</span>
+        <button class="btn ghost small" id="gp-cancel">Stop</button>
+      </div>
+      <div class="bar"><div id="gp-fill"></div></div>
+    </div>
     <div class="players card">
       <div class="player" id="player-white">
         <span class="dot white"></span>
@@ -101,7 +110,9 @@
   </div>
 </dialog>
 
-<input type="file" id="file-input" accept=".pgn,.txt,text/plain" hidden>
+<!-- The real file input: kept in the layout (1px, clipped) so Android's
+     WebView will honour the picker from the <label for> above. -->
+<input type="file" id="file-input" accept=".pgn,.txt,text/plain" class="sr-only">
 
 <script type="module" src="app.js"></script>
 </body>

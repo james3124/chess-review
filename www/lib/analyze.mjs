@@ -119,7 +119,7 @@ export async function analyzeGame(engine, game, o = {}) {
 
     if (rec.best && line1?.pv) rec.bestSan = uciToSan(fens[k - 1], line1.pv[0]);
     out.push(rec);
-    o.onProgress?.({ phase: 'move', ply: k, total: moves.length, san: mv.san, label: rec.label });
+    o.onProgress?.({ phase: 'move', ply: k, total: moves.length, san: mv.san, label: rec.label, record: rec });
   }
 
   return {

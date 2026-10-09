@@ -3,7 +3,7 @@ import { Board } from './board.js';
 import { parsePgn } from './lib/pgn.mjs';
 import { analyzeGame } from './lib/analyze.mjs';
 import { Chess } from './vendor/chess.js';
-import { LABELS } from './lib/classify.js';
+import { LABELS, summarise } from './lib/classify.js';
 import { engine as bridge } from './native-bridge.js';
 
 /* ---------------- dom ---------------- */
@@ -12,6 +12,7 @@ const ui = {
   welcome: $('#welcome'), picker: $('#picker'), pickerList: $('#picker-list'),
   game: $('#game'), progress: $('#progress'), barFill: $('#bar-fill'),
   progressText: $('#progress-text'), engineBar: $('#engine-bar'),
+  gp: $('#game-progress'), gpText: $('#gp-text'), gpFill: $('#gp-fill'),
   moveLabel: $('#move-label'), analysis: $('#analysis'), movelist: $('#movelist'),
   evalFill: $('#evalfill'), evalLabel: $('#evallabel'),
   fileInput: $('#file-input'), pasteDialog: $('#paste-dialog'), pasteText: $('#paste-text')
@@ -19,7 +20,7 @@ const ui = {
 
 const S = {
   pgn: null, games: [], idx: 0, game: null, result: null,
-  cursor: 0, board: null, abort: null, depth: 14
+  cursor: 0, board: null, abort: null, depth: 14, analysing: false
 };
 S.board = new Board($('#board'));
 
@@ -39,39 +40,53 @@ function moveLabel(m) {
 /* ---------------- engine bar ---------------- */
 let enginePromise = null; // shared: the engine may only be waited on once
 
+/** Loads Stockfish on demand — the engine must NOT start at app startup,
+ *  because there is usually no game to analyse yet. */
 function engineReady() {
   if (!enginePromise) enginePromise = bridge.waitReady();
   return enginePromise;
 }
 
-async function initEngineBar() {
+function initEngineBar() {
   const select = document.createElement('select');
   select.id = 'depth-select';
   select.innerHTML = [8, 10, 12, 14, 16, 18].map((d) =>
     `<option value="${d}" ${d === S.depth ? 'selected' : ''}>depth ${d}</option>`).join('');
   select.onchange = () => { S.depth = Number(select.value); };
 
-  const t0 = Date.now();
-  const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  ui.engineBar.className = 'engine-bar idle';
+  $('#engine-text').innerHTML = 'engine starts when you open a game';
+  $('#engine-depth').appendChild(select);
+}
+
+/** Called the moment analysis begins: show the loader + live elapsed time. */
+let engineTimer = null, engineT0 = 0;
+function showEngineLoading() {
+  engineT0 = Date.now();
   ui.engineBar.className = 'engine-bar loading';
-
-  // Tick a live counter while the ~109MiB NNUE network is being loaded.
-  const timer = setInterval(() => {
-    $('#engine-text').innerHTML = `starting engine &mdash; loading neural network (${elapsed()})`;
+  clearInterval(engineTimer);
+  engineTimer = setInterval(() => {
+    $('#engine-text').innerHTML =
+      `starting engine &mdash; loading neural network (${((Date.now() - engineT0) / 1000).toFixed(1)}s)`;
   }, 250);
+}
 
-  try {
-    const info = await engineReady();
-    if (info.state === 'failed') throw new Error(info.error || 'engine failed to start');
-    S.engineInfo = info;
+/** Re-renders the engine bar once the shared readiness promise settles. */
+async function finishEngineBar() {
+  const info = await engineReady();
+  clearInterval(engineTimer);
+  S.engineInfo = info;
+  const secs = ((Date.now() - engineT0) / 1000).toFixed(1);
+  if (info.state === 'failed') {
+    ui.engineBar.className = 'engine-bar bad';
+    $('#engine-text').innerHTML = `engine unavailable (${info.error || 'unknown'})`;
+  } else {
     ui.engineBar.className = 'engine-bar ok';
     $('#engine-text').innerHTML =
-      `engine ready: <b>${info.version || 'Stockfish'}</b> (${info.threads || '?'} threads &middot; ${info.hash || '?'} MB hash &middot; ${elapsed()})`;
-  } catch (err) {
-    ui.engineBar.className = 'engine-bar bad';
-    $('#engine-text').innerHTML = `engine unavailable (${err.message})`;
+      `engine ready: <b>${info.version || 'Stockfish'}</b> ` +
+      `(${info.threads || '?'} threads &middot; ${info.hash || '?'} MB hash &middot; ${secs}s)`;
   }
-  $('#engine-depth').appendChild(select);
+  return info;
 }
 
 /* ---------------- loading PGNs ---------------- */
@@ -98,7 +113,23 @@ function show(el) {
 function startGame(i) {
   const g = S.games[i];
   if (!g.ok) return alert('This game could not be parsed: ' + g.error);
-  S.idx = i; S.game = g;
+  S.idx = i; S.game = g; S.cursor = 0;
+
+  // Show the game IMMEDIATELY — no engine needed for the board or the moves.
+  // Labels are filled in by analyse(), which streams them as they arrive.
+  const stubs = g.moves.map((m, k) => ({
+    ...m, ply: k, pending: true, label: 'book', loss: 0, accuracy: 0,
+    winProbBefore: 0.5, winProbAfter: 0.5,
+    scoreBefore: { cp: 0, mate: null }, scoreAfter: { cp: 0, mate: null }, best: null
+  }));
+  S.result = {
+    headers: g.headers,
+    moves: stubs,
+    fens: g.fens,
+    summary: summarise(stubs)
+  };
+  renderGame(S.result);
+  show(ui.game);
   analyse(g);
 }
 
@@ -106,40 +137,53 @@ async function analyse(game) {
   S.abort?.abort();
   const ctrl = new AbortController();
   S.abort = ctrl;
-
-  // A game can be loaded/pasted while Stockfish is still booting: park here
-  // (with visible progress) until the engine can really search.
-  show(ui.progress);
-  ui.barFill.style.width = '0%';
-  ui.progressText.textContent = 'waiting for the engine to finish starting…';
+  S.analysing = true;
+  showProgress('starting engine…', 0);
+  showEngineLoading();
   try {
+    // A game can be loaded/pasted while Stockfish is still booting: park here
+    // (with visible progress) until the engine can really search.
     await engineReady();
   } catch (err) {
-    show(S.games.length > 1 ? ui.picker : ui.welcome);
+    S.analysing = false; hideProgress();
     return alert('Could not start the engine: ' + err.message);
   }
+  finishEngineBar(); // updates the engine bar (memoised promise: instant)
 
-  ui.progressText.textContent = 'engine ready — analysing…';
+  showProgress('engine ready — analysing…', 0);
   try {
     const result = await analyzeGame(bridge, game, {
       depth: S.depth,
       signal: ctrl.signal,
       onProgress: (p) => {
-        const pct = p.total ? Math.round((p.ply / p.total) * 100) : 0;
-        ui.barFill.style.width = pct + '%';
-        ui.progressText.textContent = p.phase === 'eval'
-          ? `evaluating position ${p.ply + 1}/${p.total} (${pct}%)`
-          : `classifying move ${p.ply}/${p.total}`;
+        if (p.phase !== 'move') {
+          showProgress(`evaluating position ${p.ply + 1}/${p.total}`,
+            p.total ? (p.ply / p.total) * 100 : 0);
+          return;
+        }
+        showProgress(`analysing move ${p.ply}/${p.total}`, (p.ply / p.total) * 100);
+        // splice the freshly classified move into the board we already drew
+        S.result.moves[p.ply - 1] = { ...p.record, pending: false };
+        renderMoveList(S.result);
+        renderCursor();
       }
     });
-    S.result = result; S.cursor = 0;
+    S.result = result;
     renderGame(result);
-    show(ui.game);
   } catch (err) {
     if (err.message !== 'aborted') alert('Analysis failed: ' + err.message);
-    show(S.games.length > 1 ? ui.picker : ui.welcome);
+  } finally {
+    S.analysing = false;
+    hideProgress();
   }
 }
+
+function showProgress(text, pct) {
+  ui.gp.hidden = false;
+  ui.gpText.textContent = text;
+  ui.gpFill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+}
+function hideProgress() { ui.gp.hidden = true; }
 
 /* ---------------- rendering ---------------- */
 function renderGame(r) {
@@ -162,11 +206,11 @@ function renderMoveList(r) {
   let html = '<div class="mv-grid">';
   r.moves.forEach((m, i) => {
     if (i % 2 === 0) html += `<div class="mv-num">${i / 2 + 1}.</div>`;
-    const L = LABELS[m.label];
-    html += `<div class="mv" data-i="${i + 1}">
-      <span class="tag" style="background:${L.color}">${short(m.label)}</span>
+    const L = m.pending ? null : LABELS[m.label];
+    html += `<div class="mv${m.pending ? ' pending' : ''}" data-i="${i + 1}">
+      <span class="tag" style="background:${L ? L.color : '#6b6763'}">${m.pending ? '…' : short(m.label)}</span>
       <span class="san">${m.san}</span>
-      ${m.loss > 0.02 ? `<span class="loss">${(m.loss * 100).toFixed(0)}%</span>` : ''}
+      ${!m.pending && m.loss > 0.02 ? `<span class="loss">${(m.loss * 100).toFixed(0)}%</span>` : ''}
     </div>`;
   });
   html += '</div>';
@@ -222,6 +266,14 @@ function renderCursor() {
 
   // analysis panel
   if (!mv) { ui.analysis.className = 'card analysis'; ui.analysis.innerHTML = '<div class="an-pv">Starting position — select a move to see its review.</div>'; return; }
+  if (mv.pending) {
+    ui.analysis.className = 'card analysis has-data';
+    ui.analysis.innerHTML = `<div class="an-head">
+        <span class="an-badge" style="background:#6b6763">Analysing</span>
+        <span class="an-loss">Stockfish is still working through the game&hellip;</span>
+      </div>`;
+    return;
+  }
   const L = LABELS[mv.label];
   const share = (x) => `${Math.round(x * 100)}%`;
   let html = `<div class="an-head">
@@ -252,14 +304,15 @@ function renderCursor() {
 
 /* ---------------- events ---------------- */
 function wire() {
-  const pick = () => ui.fileInput.click();
-  $('#btn-load').onclick = pick;
-  $('#btn-load-2').onclick = pick;
+  // The file picker is opened natively by the <label for="file-input"> in
+  // index.html. Calling input.click() from JS here as well would open the
+  // chooser twice on some WebViews, so we only handle the chosen file.
   ui.fileInput.onchange = () => {
     const f = ui.fileInput.files?.[0];
     if (!f) return;
     const rd = new FileReader();
     rd.onload = () => loadPgn(String(rd.result));
+    rd.onerror = () => alert('Could not read that file: ' + f.name);
     rd.readAsText(f);
   };
 
@@ -279,7 +332,8 @@ function wire() {
   $('#nav-prev').onclick = () => step(-1);
   $('#nav-next').onclick = () => step(1);
   $('#nav-flip').onclick = () => { S.board.toggleFlip(); renderCursor(); };
-  $('#btn-cancel').onclick = () => { S.abort?.abort(); };
+  $('#btn-cancel').onclick = () => S.abort?.abort();
+  $('#gp-cancel').onclick = () => S.abort?.abort();
 
   // swipe left/right across the board
   let sx = null;
