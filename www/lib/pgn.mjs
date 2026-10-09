@@ -2,7 +2,7 @@
  * pgn.mjs — PGN parsing (multi-game). Browser + Node safe (no fs).
  */
 
-import { Chess } from 'chess.js';
+import { Chess } from '../vendor/chess.js';
 
 /** Split a PGN file into raw per-game chunks. */
 export function splitPgnGames(text) {
