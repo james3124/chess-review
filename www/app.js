@@ -29,7 +29,39 @@ const S = {
 S.board = new Board($('#board'));
 
 /* ---------------- helpers ---------------- */
-const short = (label) => ({ inaccuracy: 'inacc', blunder: '??', mistake: '?', miss: 'miss', book: 'book' })[label] || label;
+/**
+ * chess.com-style annotation icons, one per classification, shown right
+ * after the move. All are inline SVG on a 24x24 grid and coloured with
+ * `currentColor`, so a single CSS colour drives them and they scale
+ * crisply — no emoji (which ignore colour and render at their own size).
+ */
+const ICON_PATHS = {
+  book: '<path d="M2.5 4.6h5.6a3.4 3.4 0 0 1 3.4 3.4v12a2.9 2.9 0 0 0-2.9-2.9H2.5z"/>' +
+        '<path d="M21.5 4.6h-5.6a3.4 3.4 0 0 0-3.4 3.4v12a2.9 2.9 0 0 1 2.9-2.9h6.1z"/>',
+  brilliant: '<g fill="currentColor" stroke="none"><text x="12" y="14.5" text-anchor="middle" ' +
+        'font-size="10.5" font-weight="800" font-family="system-ui,sans-serif">!!</text></g>',
+  great: '<path d="M12 4.6v8.6"/><circle cx="12" cy="18" r="1.5" fill="currentColor" stroke="none"/>',
+  best: '<path d="M12 3.1l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  excellent: '<path d="M7 11.3v8.2H4.7a1.6 1.6 0 0 1-1.6-1.6v-5a1.6 1.6 0 0 1 1.6-1.6z"/>' +
+        '<path d="M7 11.3l4-6.7a2 2 0 0 1 3.6 1.5l-.9 3.4h4.8a2 2 0 0 1 2 2.4l-1.2 6.2a2 2 0 0 1-2 1.6H7"/>',
+  good: '<path d="M4.6 12.6l4.9 4.9L19.4 7.4"/>',
+  inaccuracy: '<g fill="currentColor" stroke="none"><text x="12" y="14.5" text-anchor="middle" ' +
+        'font-size="9.5" font-weight="800" font-family="system-ui,sans-serif">?!</text></g>',
+  mistake: '<g fill="currentColor" stroke="none"><text x="12" y="16.5" text-anchor="middle" ' +
+        'font-size="12.5" font-weight="800" font-family="system-ui,sans-serif">?</text></g>',
+  miss: '<path d="M6.2 6.2l11.6 11.6M17.8 6.2L6.2 17.8"/>',
+  blunder: '<g fill="currentColor" stroke="none"><text x="12" y="14.5" text-anchor="middle" ' +
+        'font-size="9" font-weight="800" font-family="system-ui,sans-serif">??</text></g>'
+};
+
+/** The SVG for one classification's icon, or '' if unknown. */
+function annotIcon(label, color, size = 14) {
+  const paths = ICON_PATHS[label];
+  if (!paths) return '';
+  return `<svg class="annot-ico" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" ` +
+    `fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ` +
+    `style="color:${color}">${paths}</svg>`;
+}
 
 function fmtScore(cp, mate) {
   if (mate != null) return `M${Math.abs(mate)}`;
@@ -349,7 +381,7 @@ function renderGame(r) {
 
   // legend
   $('#legend').innerHTML = Object.entries(LABELS)
-    .map(([k, v]) => `<span class="chip" style="background:${v.color}">${v.name}</span>`).join('');
+    .map(([k, v]) => `<span class="chip">${annotIcon(k, v.color, 13)}${v.name}</span>`).join('');
 
   renderMoveList(r);
   renderCursor();
@@ -360,9 +392,10 @@ function renderMoveList(r) {
   r.moves.forEach((m, i) => {
     if (i % 2 === 0) html += `<div class="mv-num">${i / 2 + 1}.</div>`;
     const L = m.pending ? null : LABELS[m.label];
+    const icon = m.pending ? '' : annotIcon(m.label, L ? L.color : '#6b6763');
     html += `<div class="mv${m.pending ? ' pending' : ''}" data-i="${i + 1}">
-      <span class="tag" style="background:${L ? L.color : '#6b6763'}">${m.pending ? '…' : short(m.label)}</span>
       <span class="san">${m.san}</span>
+      ${icon ? `<span class="annot">${icon}</span>` : '<span class="annot">…</span>'}
       ${!m.pending && m.loss > 0.02 ? `<span class="loss">${(m.loss * 100).toFixed(0)}%</span>` : ''}
     </div>`;
   });

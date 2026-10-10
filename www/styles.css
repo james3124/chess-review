@@ -216,9 +216,10 @@ body {
 .cc-game-actions .btn, .cc-game-actions .cc-link { text-decoration: none; display: inline-block; }
 
 /* ---------- legend ---------- */
-.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .legend .chip {
-  font-size: 11px; padding: 3px 7px; border-radius: 4px; color: #fff; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--muted); font-weight: 600; padding: 2px 0;
 }
 
 /* ---------- move list ---------- */
@@ -231,9 +232,9 @@ body {
 }
 .mv:hover { background: var(--panel-2); }
 .mv.active { background: #4a4744; border-color: var(--line); }
-.mv .tag {
-  font-size: 10px; font-weight: 700; color: #fff; padding: 1px 5px; border-radius: 3px; flex: none;
-}
+/* annotation icons (inline SVG, coloured per classification) */
+.mv .annot { display: inline-flex; align-items: center; flex: none; line-height: 0; }
+.annot-ico { display: block; }
 .mv .loss { font-size: 10px; color: var(--muted); margin-left: auto; }
 .mv .noselect { color: var(--muted); }
 
