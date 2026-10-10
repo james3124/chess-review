@@ -14,7 +14,7 @@
     "build:web": "node scripts/build-web.mjs",
     "cap": "cap",
     "sync": "npm run build:web && cap sync android",
-    "test": "node test/run-sample.mjs"
+    "test": "node test/native-bridge-shape.mjs && node test/run-sample.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0",

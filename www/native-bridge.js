@@ -144,7 +144,11 @@ export const engine = {
   /** @returns {Promise<{bestMove:string, ponder:string, lines:object}>} */
   async analyze(fen, o = {}) {
     if (native) {
-      return fromNative(await plugin.analyzePosition(fen, {
+      // Capacitor plugin methods take ONE data object: the first argument IS
+      // the call payload, so passing fen separately would put a bare string
+      // in the payload and call.getString("fen") would come back null.
+      return fromNative(await plugin.analyzePosition({
+        fen,
         depth: o.depth || 0,
         movetime: o.movetime || 0
       }));
